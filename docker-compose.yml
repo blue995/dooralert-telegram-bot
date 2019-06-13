@@ -1,0 +1,17 @@
+version: '3.5'
+
+services:
+  dooralert-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - APP_HOST=0.0.0.0
+      # Intern port
+      - APP_PORT=5000
+      - FLASK_ENV=development
+      - URL_PREFIX=/test
+    ports:
+      - '5001:5000'
+    volumes:
+      - ./dooralertbot.ini:/usr/src/app/dooralertbot.ini

@@ -1,0 +1,16 @@
+.dockerignore
+Dockerfile
+docker-compose.yml
+
+__pycache__/
+venv/
+logs/
+.vscode/
+.git/
+
+.gitignore
+README.md
+
+*.sh
+*.ini
+*.pid
