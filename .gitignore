@@ -1,5 +1,6 @@
 .env
 *.ini
+*.pid
 
 __pycache__/
 venv/
