@@ -1,8 +1,11 @@
 .env
+
 *.ini
 *.pid
 
 __pycache__/
 venv/
 logs/
+htmlcov/
 .vscode/
+.pytest_cache/
