@@ -19,6 +19,10 @@ cache:
 
 script:
   - python -m unittest discover -s tests -p "test_*.py"
+  - pytest --cov dooralert/ --cov-report term
+
+after_success:
+  - codecov
 
 jobs:
   include:
