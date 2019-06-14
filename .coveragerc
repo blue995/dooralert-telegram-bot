@@ -1,6 +1,6 @@
 [run]
 branch = True
-source=dooralert
+
 
 [report]
 exclude_lines =
@@ -10,3 +10,5 @@ exclude_lines =
     if __name__ == .__main__.:
     import
 ignore_errors = True
+omit =
+    tests/*
