@@ -1,8 +1,19 @@
-dist: xenial
-language: minimal
-services:
-  - docker
+language: python
+dist: xenial # needed for python 3.7
 
+cache:
+  directories:
+  - "$HOME/.cache/pip"
+  - "$HOME/.pyenv"
+
+matrix:
+  include:
+    - python: 3.5
+    - python: 3.6
+    - python: 3.7
+      services:
+        - docker
+        
 stages:
   # - build
   - name: test
@@ -12,24 +23,8 @@ stages:
 
 jobs:
   include:
-    - stage: test
-      language: python
-      python:
-        - "3.6"
-        - "3.7"
-      name: "Unit Tests (Python)"
-      script:
-        - echo "Run Unit Tests here."
-    - stage: test
-      name: "Integration Tests"
-      before_install:
-        - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-      #  - docker pull $DOCKER_USERNAME/$DOCKER_IMAGE_TAG:latest || true
-      #install: docker build --cache-from $DOCKER_USERNAME/$DOCKER_IMAGE_TAG:latest --tag $DOCKER_USERNAME/$DOCKER_IMAGE_TAG:latest .
-      script: 
-        - echo "Run Integration Tests here."
-
     - stage: release
+      python: 3.7
       name: "Release current repository as Docker Image."
       before_install:
         - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
@@ -39,3 +34,6 @@ jobs:
       script:
         - docker push $DOCKER_USERNAME/$DOCKER_IMAGE_TAG:latest
         - docker push $DOCKER_USERNAME/$DOCKER_IMAGE_TAG:$TRAVIS_TAG
+
+script:
+  - echo "Run Tests here"
