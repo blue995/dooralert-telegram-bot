@@ -1,0 +1,41 @@
+dist: xenial
+language: minimal
+services:
+  - docker
+
+stages:
+  # - build
+  - name: test
+    if: type IN (push, pull_request) AND branch = master
+  - name: release
+    if: tag IS present
+
+jobs:
+  include:
+    - stage: test
+      language: python
+      python:
+        - "3.6"
+        - "3.7"
+      name: "Unit Tests (Python)"
+      script:
+        - echo "Run Unit Tests here."
+    - stage: test
+      name: "Integration Tests"
+      before_install:
+        - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+      #  - docker pull $DOCKER_USERNAME/$DOCKER_IMAGE_TAG:latest || true
+      #install: docker build --cache-from $DOCKER_USERNAME/$DOCKER_IMAGE_TAG:latest --tag $DOCKER_USERNAME/$DOCKER_IMAGE_TAG:latest .
+      script: 
+        - echo "Run Integration Tests here."
+
+    - stage: release
+      name: "Release current repository as Docker Image."
+      before_install:
+        - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+        - docker pull $DOCKER_USERNAME/$DOCKER_IMAGE_TAG:latest || true
+      install:
+        - docker build --cache-from $DOCKER_USERNAME/$DOCKER_IMAGE_TAG:latest --tag $DOCKER_USERNAME/$DOCKER_IMAGE_TAG:latest --tag $DOCKER_USERNAME/$DOCKER_IMAGE_TAG:$TRAVIS_TAG .
+      script:
+        - docker push $DOCKER_USERNAME/$DOCKER_IMAGE_TAG:latest
+        - docker push $DOCKER_USERNAME/$DOCKER_IMAGE_TAG:$TRAVIS_TAG
