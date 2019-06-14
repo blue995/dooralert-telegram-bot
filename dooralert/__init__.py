@@ -1,3 +1,5 @@
+import os.path
+
 from configparser import ConfigParser
 from telebot import TeleBot
 from telebot.apihelper import ApiException
@@ -39,7 +41,16 @@ class DoorAlertBot:
 
 
 class TokenProvider:
-    def __init__(self, config_file_name, telegram_bot_section, telegram_bot_token_key):
+    def __init__(self, config_file_name, telegram_bot_section='telegram.bot', telegram_bot_token_key='token'):
+        if config_file_name is None:
+            msg = 'Config file name is none.'
+            logger.critical(msg)
+            raise ValueError(msg)
+        if not os.path.isfile(config_file_name):
+            expected_path = os.path.abspath('.')
+            msg = 'Config file "{0}" does not exist in directory {1}'.format(config_file_name, expected_path)
+            logger.critical(msg)
+            raise FileNotFoundError(msg)
         self._config_file_name = config_file_name
         self._telegram_bot_section = telegram_bot_section
         self._telegram_bot_token_key = telegram_bot_token_key
@@ -51,7 +62,7 @@ class TokenProvider:
         logger.debug('done.')
 
         logger.debug('Try to find section {} in config file.'.format(self._telegram_bot_section))
-        _telegram_bot_section_present = self._telegram_bot_section in _config
+        _telegram_bot_section_present = (not self._telegram_bot_section is None) and self._telegram_bot_section in _config
         if not _telegram_bot_section_present:
             _error_msg = 'Section {0} is not present in the {1} file.'.format(self._telegram_bot_section, self._config_file_name)
             logger.error(_error_msg)
@@ -59,7 +70,7 @@ class TokenProvider:
         logger.debug('done.')
         
         logger.debug('Try to find key {0} of section {1} in config file.'.format(self._telegram_bot_token_key, self._telegram_bot_section))
-        _telegram_bot_token_key_is_present = self._telegram_bot_token_key in _config[self._telegram_bot_section]
+        _telegram_bot_token_key_is_present = (not self._telegram_bot_token_key is None) and self._telegram_bot_token_key in _config[self._telegram_bot_section]
         if not _telegram_bot_token_key_is_present:
             _error_msg = 'Section {0} has no {1} key in the {1} file.'.format(self._telegram_bot_section, self._telegram_bot_token_key, self._config_file_name)
             logger.error(_error_msg)
