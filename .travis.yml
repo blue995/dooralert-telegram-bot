@@ -1,19 +1,10 @@
 language: python
 dist: xenial # needed for python 3.7
+python:
+  - "3.5"
+  - "3.6"
+  - "3.7"
 
-cache:
-  directories:
-  - "$HOME/.cache/pip"
-  - "$HOME/.pyenv"
-
-matrix:
-  include:
-    - python: 3.5
-    - python: 3.6
-    - python: 3.7
-      services:
-        - docker
-        
 stages:
   # - build
   - name: test
@@ -21,10 +12,20 @@ stages:
   - name: release
     if: tag IS present
 
+cache:
+  directories:
+  - "$HOME/.cache/pip"
+  - "$HOME/.pyenv"
+
+script:
+  - echo "Run Tests here"
+
 jobs:
   include:
     - stage: release
       python: 3.7
+      services:
+        - docker
       name: "Release current repository as Docker Image."
       before_install:
         - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
@@ -34,6 +35,3 @@ jobs:
       script:
         - docker push $DOCKER_USERNAME/$DOCKER_IMAGE_TAG:latest
         - docker push $DOCKER_USERNAME/$DOCKER_IMAGE_TAG:$TRAVIS_TAG
-
-script:
-  - echo "Run Tests here"
