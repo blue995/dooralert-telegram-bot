@@ -1,5 +1,6 @@
 import os.path
 
+from functools import wraps
 from configparser import ConfigParser
 from telebot import TeleBot
 from telebot.apihelper import ApiException
@@ -14,30 +15,16 @@ logger = get_logger()
 class DoorAlertBotException(Exception):
     pass
 
-class DoorAlertBot:
-    def __init__(self, config_provider, telegram_bot_initializer):
-        self._config_provider = config_provider
-        self._telegram_bot_initializer = telegram_bot_initializer
-        self._bot = None
-        self._registered_chats = set()
-    
-    def init_bot(self):
-        token = self._config_provider.get_token()
-        self._bot = self._telegram_bot_initializer.create_bot(token)
-    
-    def init_handlers(self):
-        bot = self._bot
-        if bot is None:
-            msg = 'Bot is not initialized.'
-            logger.critical(msg)
-            raise DoorAlertBotException(msg)
-    
-        self._telegram_bot_initializer.init_handlers(bot)
+def log(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        function_name = f.__name__
+        logger.debug('Entering {0} function. Args: {1}; Kwargs: {2}'.format(function_name, args, kwargs))
+        ret = f(*args, **kwargs)
+        logger.debug('Leaving {0} function.'.format(function_name))
+        return ret
+    return decorated
 
-    def polling(self, *args, **kwargs):
-        logger.info("Start polling...")
-        self._bot.polling(*args, **kwargs)
-        logger.info("Polling ended.")
 
 
 class TokenProvider:
@@ -81,59 +68,103 @@ class TokenProvider:
         return _config[self._telegram_bot_section][self._telegram_bot_token_key]
 
 
-class BotInitializer:
-    def create_bot(self, token):
-        return TeleBot(token=token)
+class BotMessageHandler:
+    def __init__(self):
+        self._subscriptions = set()
     
-    def init_handlers(self, bot):
-        @bot.message_handler(commands=['start', 'welcome'])
-        def send_welcome(message):
-            logger.debug('Entering send_welcome function with message: {}'.format(message))
-            first_name = message.from_user.first_name
-            last_name = message.from_user.last_name
-            welcome_msg = 'Welcome! {0} {1}'.format(first_name, last_name)
-            logger.debug('Sending welcome reply to user: {}'.format(welcome_msg))
-            bot.reply_to(message, welcome_msg)
-            logger.debug('Calling send_help function.')
-            send_help(message)
-            logger.debug('Leaving send_welcome function.')
+    def handle_welcome(self, bot: TeleBot, message):
+        first_name = message.from_user.first_name
+        last_name = message.from_user.last_name
+        welcome_msg = 'Welcome! {0} {1}'.format(first_name, last_name)
+        logger.debug('Sending welcome reply to user: {}'.format(welcome_msg))
+        bot.reply_to(message, welcome_msg)
+        logger.debug('Calling send_help function.')
+        self.handle_help(bot, message)
+    
+    def handle_help(self, bot: TeleBot, message):
+        help_text = """
+        Help for this bot:
+        /help: Show this help.
+        /subscribe: Subscribe this chat.
+        /subscriptions: Get all subscribed chats.
+        /start: Start the bot.
+        /unsubscribe: Unsubscribe this chat.
+        /welcome: Get the welcome message
+        """
+        logger.debug('Sending help reply to user.')
+        bot.reply_to(message, help_text)
 
+    def handle_subscribe_chat(self, bot: TeleBot, message):
+        chat_id = message.chat.id
+        logger.debug('Subscribing chat {}'.format(chat_id))
+        self._subscriptions.add(chat_id)
+        success_msg = 'Chat subscribed.'
+        logger.debug('Sending success message to user: {}'.format(success_msg))
+        bot.send_message(message.chat.id, success_msg)
+
+    def handle_get_subscriptions(self, bot: TeleBot, message):
+        chat_id = message.chat.id
+        response = 'No chats subscribed yet.' if len(self._subscriptions) == 0 else ', '.join(str(e) for e in self._subscriptions)
+        logger.debug('Sending response to user: {}'.format(response))
+        bot.send_message(chat_id, response)
+
+    def handle_unsubscribe_chat(self, bot: TeleBot, message):
+        chat_id = message.chat.id
+        logger.debug('Removing chat {}'.format(chat_id))
+        if not chat_id in self._subscriptions:
+            msg = 'This chat is not subscribed yet.'
+        else:
+            self._subscriptions.remove(chat_id)
+            msg = 'Chat unsubscribed. You will no longer receive updates from this chat.'
+        logger.debug('Sending message to user: {}'.format(msg))
+        bot.send_message(message.chat.id, msg)
+
+class DoorAlertBot:
+    def __init__(self, config_provider: TokenProvider, telegram_bot_message_handler: BotMessageHandler):
+        self._config_provider = config_provider
+        self._message_handler = telegram_bot_message_handler
+        self._bot = None
+    
+    def init_bot(self):
+        token = self._config_provider.get_token()
+        self._bot = TeleBot(token=token)
+    
+    @property
+    def bot(self):
+        return self._bot
+    
+    def init_handlers(self):
+        bot = self._bot
+        if bot is None:
+            msg = 'Bot is not initialized.'
+            logger.critical(msg)
+            raise DoorAlertBotException(msg)
+        bot_message_handler = self._message_handler
+
+        @bot.message_handler(commands=['start', 'welcome'])
+        @log
+        def send_welcome(message):
+            bot_message_handler.handle_welcome(bot, message)
 
         @bot.message_handler(commands=['help'])
+        @log
         def send_help(message):
-            logger.debug('Entering send_help function with message: {}'.format(message))
-            help_text = """
-            Help for this bot:
-            /register: Register this current chat.
-            /registered: Get all registered chats.
-            /start: Start the bot.
-            /welcome: Get the welcome message
-            """
-            logger.debug('Sending help reply to user.')
-            bot.reply_to(message, help_text)
-            logger.debug('Leaving send_help function.')
+            bot_message_handler.handle_help(bot, message)
 
+        @bot.message_handler(commands=['subscribe'])
+        @log
+        def subscribe_chat(message):
+            bot_message_handler.handle_subscribe_chat(bot, message)
 
-        @bot.message_handler(commands=['register'])
-        def register_chat(message):
-            logger.debug('Entering register_chat function with message: {}'.format(message))
-            chat_id = message.chat.id
-            logger.debug('Registering chat {}'.format(chat_id))
-            self._registered_chats.add(chat_id)
-            success_msg = 'Chat registered.'
-            logger.debug('Sending success message to user: {}'.format(success_msg))
-            bot.send_message(message.chat.id, success_msg)
-            logger.debug('Leaving register_chat function.')
+        @bot.message_handler(commands=['subscriptions'])
+        @log
+        def get_subscriptions(message):
+            bot_message_handler.handle_get_subscriptions(bot, message)
 
-
-        @bot.message_handler(commands=['registered'])
-        def get_registered_chats(message):
-            logger.debug('Entering get_registered_chats function with message: {}'.format(message))
-            chat_id = message.chat.id
-            response = 'No chats registered yet.' if len(self._registered_chats) == 0 else ', '.join(str(e) for e in self._registered_chats)
-            logger.debug('Sending response to user: {}'.format(response))
-            bot.send_message(chat_id, response)
-            logger.debug('Leaving get_registered_chats function.')
+        @bot.message_handler(commands=['unsubscribe'])
+        @log
+        def unsubscribe_chat(message):
+            bot_message_handler.handle_unsubscribe_chat(bot, message)
 
         #### Just some test
         def find_at(msg):
@@ -143,8 +174,15 @@ class BotInitializer:
 
 
         @bot.message_handler(func=lambda msg: msg.text is not None and '@' in msg.text)
+        @log
         def at_answer(message):
             texts = message.text.split()
             at_text = find_at(texts)
             bot.reply_to(message, 'https://instagram.com/{}'.format(at_text[1:]))
         #### End
+
+
+    def polling(self, *args, **kwargs):
+        logger.info("Start polling...")
+        self._bot.polling(*args, **kwargs)
+        logger.info("Polling ended.")
