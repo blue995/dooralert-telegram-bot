@@ -2,3 +2,4 @@ pyTelegramBotAPI
 pytest
 pytest-cov
 codecov
+parameterized
