@@ -11,3 +11,4 @@ ignore_errors = True
 omit =
     tests/*
     dooralert/__main__.py
+    dooralert/logger.py

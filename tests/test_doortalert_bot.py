@@ -3,7 +3,7 @@ import time
 
 from parameterized import parameterized, parameterized_class
 from telebot import types, util, TeleBot
-from dooralert import DoorAlertBot
+from dooralert import DoorAlertBot, DoorAlertBotException
 
 
 class MockBotMessageHandler:
@@ -58,6 +58,14 @@ class TestTeleBot(unittest.TestCase):
         params = {'text': text}
         chat = types.User(11, False, 'test')
         return types.Message(1, None, None, chat, 'text', params, "")
+    
+    def test_init_handlers_before_init_bot(self):
+        token = 'token'
+        token_provider = MockTokenProvider(token)
+        message_handler = MockBotMessageHandler()
+        dooralert_bot = DoorAlertBot(token_provider, message_handler)
+        with self.assertRaises(DoorAlertBotException) as cm:
+            dooralert_bot.init_handlers()
 
 if __name__ == '__main__':
     unittest.main()

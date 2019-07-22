@@ -2,7 +2,11 @@ import logging.handlers
 import os
 import errno
 
-_LOG_DIR = 'logs'
+
+try:
+    _LOG_DIR = os.environ['LOG_DIR']
+except KeyError:
+    _LOG_DIR = 'logs'
 
 if not os.path.isdir(_LOG_DIR):
     try:

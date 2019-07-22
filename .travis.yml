@@ -17,9 +17,7 @@ cache:
   - "$HOME/.cache/pip"
   - "$HOME/.pyenv"
 
-script:
-  - python -m unittest discover -s tests -p "test_*.py"
-  - pytest --cov dooralert/ --cov-report term
+script: sh coverage.sh
 
 after_success:
   - codecov
