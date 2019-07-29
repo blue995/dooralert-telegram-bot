@@ -1,4 +1,5 @@
 from telebot import TeleBot
+from telebot.types import Message
 
 from dooralert.logger import get_logger
 
@@ -10,7 +11,10 @@ class BotMessageHandler:
     def __init__(self):
         self._subscriptions = set()
     
-    def handle_welcome(self, bot: TeleBot, message):
+    def contains_chat(self, chat_id):
+        return int(chat_id) in self._subscriptions
+
+    def handle_welcome(self, bot: TeleBot, message: Message):
         first_name = message.from_user.first_name
         last_name = message.from_user.last_name
         welcome_msg = 'Welcome! {0} {1}'.format(first_name, last_name)
@@ -19,7 +23,7 @@ class BotMessageHandler:
         logger.debug('Calling send_help function.')
         self.handle_help(bot, message)
     
-    def handle_help(self, bot: TeleBot, message):
+    def handle_help(self, bot: TeleBot, message: Message):
         help_text = """
         Help for this bot:
         /help: Show this help.
@@ -32,7 +36,7 @@ class BotMessageHandler:
         logger.debug('Sending help reply to user.')
         bot.reply_to(message, help_text)
 
-    def handle_subscribe_chat(self, bot: TeleBot, message):
+    def handle_subscribe_chat(self, bot: TeleBot, message: Message):
         chat_id = message.chat.id
         logger.debug('Subscribing chat {}'.format(chat_id))
         self._subscriptions.add(chat_id)
@@ -40,13 +44,13 @@ class BotMessageHandler:
         logger.debug('Sending success message to user: {}'.format(success_msg))
         bot.send_message(message.chat.id, success_msg)
 
-    def handle_get_subscriptions(self, bot: TeleBot, message):
+    def handle_get_subscriptions(self, bot: TeleBot, message: Message):
         chat_id = message.chat.id
         response = 'No chats subscribed yet.' if len(self._subscriptions) == 0 else ', '.join(str(e) for e in self._subscriptions)
         logger.debug('Sending response to user: {}'.format(response))
         bot.send_message(chat_id, response)
 
-    def handle_unsubscribe_chat(self, bot: TeleBot, message):
+    def handle_unsubscribe_chat(self, bot: TeleBot, message: Message):
         chat_id = message.chat.id
         logger.debug('Removing chat {}'.format(chat_id))
         if not chat_id in self._subscriptions:

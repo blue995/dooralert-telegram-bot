@@ -81,6 +81,9 @@ class DoorAlertBot:
     def bot(self):
         return self._bot
     
+    def contains_chat(self, chat_id):
+        return self._message_handler.contains_chat(chat_id)
+    
     def init_handlers(self):
         bot = self._bot
         if bot is None:
@@ -128,7 +131,6 @@ class DoorAlertBot:
             at_text = find_at(texts)
             bot.reply_to(message, 'https://instagram.com/{}'.format(at_text[1:]))
         #### End
-
 
     def polling(self, *args, **kwargs):
         logger.info("Start polling...")
