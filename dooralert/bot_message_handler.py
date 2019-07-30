@@ -1,5 +1,5 @@
 from telebot import TeleBot
-from telebot.types import Message
+from telebot.types import Message, ChatMember
 
 from dooralert.logger import get_logger
 
@@ -15,8 +15,13 @@ class BotMessageHandler:
         return int(chat_id) in self._subscriptions
 
     def handle_welcome(self, bot: TeleBot, message: Message):
-        first_name = message.from_user.first_name
-        last_name = message.from_user.last_name
+        from_user = message.from_user
+        if (type(from_user) is ChatMember):
+            first_name = from_user.user.first_name
+            last_name = from_user.user.last_name
+        else:
+            first_name = from_user.first_name
+            last_name = from_user.last_name
         welcome_msg = 'Welcome! {0} {1}'.format(first_name, last_name)
         logger.debug('Sending welcome reply to user: {}'.format(welcome_msg))
         bot.reply_to(message, welcome_msg)

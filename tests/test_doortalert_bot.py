@@ -3,25 +3,25 @@ import time
 import os
 
 from parameterized import parameterized, parameterized_class
-from telebot import types, util, TeleBot
+from telebot import types
 from dooralert import DoorAlertBot, DoorAlertBotException
 from dooralert.bot_message_handler import BotMessageHandler
 
 
 class MockBotMessageHandler:
-    def handle_welcome(self, bot: TeleBot, message):
+    def handle_welcome(self, bot, message):
         message.text = 'welcome'
     
-    def handle_help(self, bot: TeleBot, message):
+    def handle_help(self, bot, message):
         message.text = 'help'
 
-    def handle_subscribe_chat(self, bot: TeleBot, message):
+    def handle_subscribe_chat(self, bot, message):
         message.text = 'subscribe'
 
-    def handle_get_subscriptions(self, bot: TeleBot, message):
+    def handle_get_subscriptions(self, bot, message):
         message.text = 'subscriptions'
     
-    def handle_unsubscribe_chat(self, bot: TeleBot, message):
+    def handle_unsubscribe_chat(self, bot, message):
         message.text = 'unsubscribe'
 
 
@@ -40,14 +40,14 @@ class TestDoorAlertUtils:
         return types.Message(1, None, None, chat, 'text', params, "")
 
     @staticmethod
-    def create_group_text_message(text, bot: TeleBot, chat_id):
+    def create_group_text_message(text, bot: DoorAlertBot, chat_id):
         params = {'text': text}
         chat = bot.get_chat(chat_id)
         from_user = TestDoorAlertUtils.get_chat_administrator(bot, chat_id)
         return types.Message(1, from_user, None, chat, 'text', params, "")
     
     @staticmethod
-    def get_chat_administrator(bot: TeleBot, chat_id):
+    def get_chat_administrator(bot: DoorAlertBot, chat_id):
         users = bot.get_chat_administrators(chat_id)
         if len(users) is 0:
             raise RuntimeError('There should be at least one administrator in the group.')
@@ -71,8 +71,7 @@ class TestDoorAlertBotLogic(unittest.TestCase):
         dooralert_bot.init_handlers()
 
         msg = TestDoorAlertUtils.create_text_message(message)
-        bot = dooralert_bot.bot
-        bot.process_new_messages([msg])
+        dooralert_bot.process_new_messages([msg])
         time.sleep(1)
         self.assertEqual(msg.text, result)
     
@@ -85,6 +84,7 @@ class TestDoorAlertBotLogic(unittest.TestCase):
             dooralert_bot.init_handlers()
 
 
+@unittest.skipUnless('TELEGRAM_BOT_TOKEN' and 'TELEGRAM_CHAT_ID' in os.environ, 'TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID must be present in environment.')
 class TestDoorAlertBot(unittest.TestCase):
     def setUp(self):
         chat_id = os.environ['TELEGRAM_CHAT_ID']
@@ -97,11 +97,14 @@ class TestDoorAlertBot(unittest.TestCase):
         dooralert_bot.init_handlers()
         
         self._dooralert_bot = dooralert_bot
-        self._internal_bot = dooralert_bot.bot
         self._chat_id = chat_id
+    
+    def tearDown(self):
+        self._dooralert_bot = None
+        self._chat_id = None
 
     def test_valid_subscribe(self):
-        bot = self._internal_bot
+        bot = self._dooralert_bot
         msg = TestDoorAlertUtils.create_group_text_message('/subscribe', bot, self._chat_id)
         bot.process_new_messages([msg])
         msg = TestDoorAlertUtils.create_group_text_message('/subscriptions', bot, self._chat_id)
@@ -110,7 +113,7 @@ class TestDoorAlertBot(unittest.TestCase):
         self.assertTrue(contains_chat)
     
     def test_unsubscribe_after_valid_subscribe(self):
-        bot = self._internal_bot
+        bot = self._dooralert_bot
         msg = TestDoorAlertUtils.create_group_text_message('/subscribe', bot, self._chat_id)
         bot.process_new_messages([msg])
         msg = TestDoorAlertUtils.create_group_text_message('/unsubscribe', bot, self._chat_id)
@@ -119,6 +122,21 @@ class TestDoorAlertBot(unittest.TestCase):
         bot.process_new_messages([msg])
         contains_chat = self._dooralert_bot.contains_chat(self._chat_id)
         self.assertFalse(contains_chat)
+
+    @parameterized.expand([
+        ('/help'),
+        ('/welcome'),
+        ('/start')
+    ])
+    def test_simple_messages(self, message):
+        bot = self._dooralert_bot
+        msg = TestDoorAlertUtils.create_group_text_message(message, bot, self._chat_id)
+        bot.process_new_messages([msg])
+    
+    def test_unsubscribe_of_not_subscribed_chat(self):
+        bot = self._dooralert_bot
+        msg = TestDoorAlertUtils.create_group_text_message('/unsubscribe', bot, self._chat_id)
+        bot.process_new_messages([msg])
 
 
 if __name__ == '__main__':

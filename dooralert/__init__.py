@@ -3,13 +3,14 @@ import os.path
 from functools import wraps
 from configparser import ConfigParser
 from telebot import TeleBot
+from telebot.types import Message
 from telebot.apihelper import ApiException
 
 from dooralert.logger import get_logger
 from dooralert.bot_message_handler import BotMessageHandler
 
 __version__ = "0.0.1"
-logger = get_logger()
+logger = get_logger(__name__)
 
 
 class DoorAlertBotException(Exception):
@@ -77,19 +78,31 @@ class DoorAlertBot:
         token = self._config_provider.get_token()
         self._bot = TeleBot(token=token)
     
-    @property
-    def bot(self):
-        return self._bot
-    
     def contains_chat(self, chat_id):
         return self._message_handler.contains_chat(chat_id)
     
-    def init_handlers(self):
+    def get_chat(self, chat_id):
+        self._check_bot_initialized()
+        return self._bot.get_chat(chat_id)
+    
+    def get_chat_administrators(self, chat_id):
+        self._check_bot_initialized()
+        return self._bot.get_chat_administrators(chat_id)
+    
+    def process_new_messages(self, messages: list):
+        self._check_bot_initialized()
+        self._bot.process_new_messages(messages)
+
+    def _check_bot_initialized(self):
         bot = self._bot
         if bot is None:
             msg = 'Bot is not initialized.'
             logger.critical(msg)
             raise DoorAlertBotException(msg)
+
+    def init_handlers(self):
+        self._check_bot_initialized()
+        bot = self._bot
         bot_message_handler = self._message_handler
 
         @bot.message_handler(commands=['start', 'welcome'])
