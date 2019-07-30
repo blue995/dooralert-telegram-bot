@@ -3,8 +3,6 @@ import os.path
 from functools import wraps
 from configparser import ConfigParser
 from telebot import TeleBot
-from telebot.types import Message
-from telebot.apihelper import ApiException
 
 from dooralert.logger import get_logger
 from dooralert.bot_message_handler import BotMessageHandler
